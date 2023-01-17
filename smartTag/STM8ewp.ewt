@@ -2154,12 +2154,27 @@
         </settings>
     </configuration>
     <group>
-        <name>library</name>
+        <name>common</name>
         <file>
-            <name>$PROJ_DIR$\..\lib\boardCj\board.c</name>
+            <name>$PROJ_DIR$\..\lib\common\cFunc.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\lib\boardCj\board.h</name>
+            <name>$PROJ_DIR$\..\lib\common\cFunc.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\lib\common\common.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\lib\common\common.h</name>
+        </file>
+    </group>
+    <group>
+        <name>library</name>
+        <file>
+            <name>$PROJ_DIR$\..\lib\boardCj\hardware.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\lib\boardCj\hardware.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\lib\boardCj\mcuPinOut.h</name>
@@ -2220,6 +2235,12 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\lib\SPL\stm8s_i2c.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\lib\SPL\stm8s_it.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\lib\SPL\stm8s_it.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\lib\SPL\stm8s_itc.c</name>
@@ -2284,5 +2305,8 @@
     </file>
     <file>
         <name>$PROJ_DIR$\main.c</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\main.h</name>
     </file>
 </project>

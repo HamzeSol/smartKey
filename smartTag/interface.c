@@ -1,20 +1,27 @@
 #include "interface.h"
-#include "board.h"
-
-
-
+#include "hardware.h"
 
 void initialize(void)
 {
-  hwInit();
+  HwInit();
 }
 
 void light(char _val)
 {
-  set_PCB_PC3(_val);
+  SetPcbPC3(_val);
 }
 
 char button(void)
 {
-  return get_PCB_PD4();
+  return GetPcbPD4();
+}
+
+char readTag(unsigned char *_ar)
+{
+  return GetUart1(_ar);
+}
+
+void u_printf(unsigned char *_ar, unsigned char _size)
+{
+  SendUart1(_ar, _size);
 }
