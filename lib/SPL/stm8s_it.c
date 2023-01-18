@@ -43,7 +43,7 @@ extern uint8_t RxBuffer2[];
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 /* Public functions ----------------------------------------------------------*/
-extern void Delay (uint16_t nCount);
+//extern void Delay (uint16_t nCount);
 
 
 #ifdef _COSMIC_
@@ -529,6 +529,8 @@ INTERRUPT_HANDLER(TIM6_UPD_OVF_TRG_IRQHandler, 23)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
+  TIM4_callBackIrq();
+  TIM4_ClearITPendingBit(TIM4_IT_UPDATE);
 }
 #endif /*STM8S903*/
 

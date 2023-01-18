@@ -8,6 +8,7 @@ char u1TxBuff;
 
 static void CLK_Config(void);
 static void UART_Config(void);
+static void TIM4_Config(void);
 
 #define U1_RX_BUFF_SIZE 60
 #define U1_TX_BUFF_SIZE 20
@@ -17,7 +18,6 @@ static void UART_Config(void);
 unsigned char tagCodeAr[CODE_SIZE];
 unsigned char codeGetCnt = 0;
 unsigned char data;
-
 
 void HwInit(void)
 {
@@ -33,25 +33,46 @@ void HwInit(void)
 
   /* UART configuration -----------------------------------------*/
   UART_Config();
+
+  /* TIM4 configuration -----------------------------------------*/
+  //TIM4_Config();
+  enableInterrupts();
+  //TIM4_Cmd(ENABLE);
+  /* Define FLASH programming time */
+  FLASH_SetProgrammingTime(FLASH_PROGRAMTIME_STANDARD);
 }
 
+// void Delay(unsigned short nCount)
+// {
+//   /* Decrement nCount value */
+//   int i = 0xFFFF;
 
-void Delay(unsigned short nCount)
+//   while (nCount != 0)
+//   {
+//     nCount--;
+//     i = 0xFF;
+//     while (i)
+//     {
+//       i--;
+//     }
+//   }
+// }
+
+void EEpromWriteByte(uint32_t _address, uint8_t _data)
 {
-  /* Decrement nCount value */
-  int i = 0xFFFF;
-
-  while (nCount != 0)
-  {
-    nCount--;
-    i = 0xFF;
-    while (i)
-    {
-      i--;
-    }
-  }
+  FLASH_Unlock(FLASH_MEMTYPE_DATA);
+  FLASH_ProgramByte((_address), _data);
+  FLASH_Lock(FLASH_MEMTYPE_DATA);
 }
 
+uint8_t EEpromReadByte(uint32_t _address)
+{
+  uint8_t data;
+  FLASH_Unlock(FLASH_MEMTYPE_DATA);
+  data = FLASH_ReadByte(_address);
+  FLASH_Lock(FLASH_MEMTYPE_DATA);
+  return data;
+}
 
 void SetPcbPC3(char _val)
 {
@@ -65,7 +86,6 @@ char GetPcbPD4(void)
 {
   return GPIO_ReadInputPin(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS);
 }
-
 
 void SendUart1(unsigned char *_ar, unsigned char _size)
 {
@@ -131,8 +151,6 @@ char GetUart1(unsigned char *_ar)
   return 0;
 }
 
-
-
 void Uart1TXIRQcallback()
 {
 
@@ -150,9 +168,6 @@ void Uart1RXIRQcallback(unsigned char _val)
 {
   RingBuffer8Write(u1RxBuff, _val);
 }
-
-
-
 
 /**
  * @brief  Configure system clock to run at 16Mhz
@@ -194,5 +209,148 @@ static void UART_Config(void)
   // UART1_ITConfig(UART1_IT_TXE, ENABLE);
 
   /* Enable general interrupts */
-  enableInterrupts();
+}
+
+#define TIM4_PERIOD 124
+/**
+ * @brief  Configure TIM4 to generate an update interrupt each 1ms
+ * @param  None
+ * @retval None
+ */
+static void TIM4_Config(void)
+{
+  /* TIM4 configuration:
+   - TIM4CLK is set to 16 MHz, the TIM4 Prescaler is equal to 128 so the TIM1 counter
+   clock used is 16 MHz / 128 = 125 000 Hz
+  - With 125 000 Hz we can generate time base:
+      max time base is 2.048 ms if TIM4_PERIOD = 255 --> (255 + 1) / 125000 = 2.048 ms
+      min time base is 0.016 ms if TIM4_PERIOD = 1   --> (  1 + 1) / 125000 = 0.016 ms
+  - In this example we need to generate a time base equal to 1 ms
+   so TIM4_PERIOD = (0.001 * 125000 - 1) = 124 */
+
+  // disableInterrupts();
+  /* Time base configuration */
+  TIM4_TimeBaseInit(TIM4_PRESCALER_128, TIM4_PERIOD);
+  /* Clear TIM4 update flag */
+  TIM4_ClearFlag(TIM4_FLAG_UPDATE);
+  /* Enable update interrupt */
+  TIM4_ITConfig(TIM4_IT_UPDATE, ENABLE);
+
+  /* enable interrupts */
+  // enableInterrupts();
+
+  /* Enable TIM4 */
+}
+
+__IO uint32_t delayCounter = 50;
+;
+// volatile unsigned int delayCounter=10;
+void Delay(__IO uint32_t _val)
+{
+  delayCounter = _val;
+
+  while (delayCounter > 0)
+    ;
+}
+char ledStatus = 0;
+unsigned int ledStatusCounter = 0;
+void LedStatus(char _val)
+{
+  ledStatus = _val;
+  ledStatusCounter = 0;
+}
+
+
+void TIM4_callBackIrq(void)
+{
+
+  switch (ledStatus)
+  {
+  case LED_OFF:
+
+    GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    break;
+  case LED_ON:
+    GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    break;
+  case LED_OK:
+    if (ledStatusCounter > 1)
+      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    else if (ledStatusCounter > 0)
+    {
+      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      ledStatus = 0;
+    }
+    else
+      ledStatusCounter = 1500;
+  case LED_ERROR:
+    if (ledStatusCounter > 1)
+      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    else if (ledStatusCounter > 0)
+    {
+      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      ledStatus = 0;
+    }
+    else
+      ledStatusCounter = 60;
+
+    break;
+  case LED_REG_USER:
+    if (ledStatusCounter > 200)
+      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    else if (ledStatusCounter > 0)
+      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    else
+      ledStatusCounter = 400;
+    break;
+  case LED_REG_MASTER:
+    if (ledStatusCounter > 200)
+      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    else if (ledStatusCounter > 0)
+      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    else
+      ledStatusCounter = 1000;
+    break;
+
+  // case 10:
+  //   if (ledStatusCounter > 200)
+  //     GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+  //   else if (ledStatusCounter > 100)
+  //     GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+  //   else if (ledStatusCounter > 1)
+  //     GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+  //   else if (ledStatusCounter > 0)
+  //   {
+  //     GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+  //     ledStatus = 0;
+  //   }
+  //   else
+  //     ledStatusCounter = 300;
+
+    break;
+
+  default:
+    break;
+  }
+
+  if (ledStatusCounter)
+    ledStatusCounter--;
+
+  if (delayCounter > 0)
+  {
+    delayCounter--;
+  }
+
+  // if (delayCounter > 0)
+  // {
+  //   delayCounter--;
+  // }
+  // else
+  // {
+  //   delayCounter = 1000;
+  //   GPIO_WriteReverse(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+  // }
+  //
+
+  // GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
 }

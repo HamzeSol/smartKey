@@ -21,7 +21,7 @@ int main(void)
   {
     // light(button());
  
-    isKey = readTag(keyCode);
+    isKey = ReadTag(keyCode);
     if (isKey > 0)
     {
       u_printf(keyCode, 14);
