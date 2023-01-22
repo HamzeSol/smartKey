@@ -1077,6 +1077,7 @@
                     <name>CCIncludePath2</name>
                     <state>$PROJ_DIR$\..\lib\boardCj</state>
                     <state>$PROJ_DIR$\..\lib\SPL</state>
+                    <state>$PROJ_DIR$\..\lib\common</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>

@@ -9,24 +9,39 @@ char u1TxBuff;
 static void CLK_Config(void);
 static void UART_Config(void);
 static void TIM4_Config(void);
-
+#define FLASH_ADDRESS_START 0x4010
 #define U1_RX_BUFF_SIZE 60
-#define U1_TX_BUFF_SIZE 20
+#define U1_TX_BUFF_SIZE 60
 
 #define CODE_SIZE 16
+#define TAG_DATA_SIZE 5
 
 unsigned char tagCodeAr[CODE_SIZE];
+unsigned char tagCodeIntAr[TAG_DATA_SIZE];
+unsigned char tagHex[3];
 unsigned char codeGetCnt = 0;
 unsigned char data;
-
+int ms = 0;
+int second = 0;
+int repeatCounter = 0;
+int holdCounter = 0;
+int pcbD2time = 0;
 void HwInit(void)
 {
   u1RxBuff = RingBuffer8Create(U1_RX_BUFF_SIZE);
   u1TxBuff = RingBuffer8Create(U1_TX_BUFF_SIZE);
 
   /* Initialize I/Os in Output Mode */
-  GPIO_Init(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS, GPIO_MODE_OUT_PP_LOW_FAST);
-  GPIO_Init(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS, GPIO_MODE_IN_PU_IT);
+  // GPIO_WriteHigh()
+
+  GPIO_Init(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS, GPIO_MODE_OUT_PP_HIGH_SLOW);
+  GPIO_Init(RELAY_GPIO_PORT, (GPIO_Pin_TypeDef)RELAY_GPIO_PINS, GPIO_MODE_OUT_PP_HIGH_SLOW);
+
+  GPIO_Init(BUZ_GPIO_PORT, (GPIO_Pin_TypeDef)BUZ_GPIO_PINS, GPIO_MODE_OUT_OD_HIZ_SLOW);
+  GPIO_Init(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS, GPIO_MODE_IN_PU_NO_IT);
+
+  GPIO_WriteHigh(RELAY_GPIO_PORT, (GPIO_Pin_TypeDef)RELAY_GPIO_PINS);
+  GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PORT);
 
   /* CLK configuration -----------------------------------------*/
   CLK_Config();
@@ -35,33 +50,40 @@ void HwInit(void)
   UART_Config();
 
   /* TIM4 configuration -----------------------------------------*/
-  //TIM4_Config();
+  TIM4_Config();
   enableInterrupts();
-  //TIM4_Cmd(ENABLE);
+  TIM4_Cmd(ENABLE);
   /* Define FLASH programming time */
   FLASH_SetProgrammingTime(FLASH_PROGRAMTIME_STANDARD);
 }
 
-// void Delay(unsigned short nCount)
-// {
-//   /* Decrement nCount value */
-//   int i = 0xFFFF;
 
-//   while (nCount != 0)
-//   {
-//     nCount--;
-//     i = 0xFF;
-//     while (i)
-//     {
-//       i--;
-//     }
-//   }
-// }
+void EEpromWriteArray(uint32_t _address, uint8_t *_data, uint8_t _size)
+{
+  uint8_t i = 0;
+  FLASH_Unlock(FLASH_MEMTYPE_DATA);
+  for (i = 0; i < _size; i++)
+  {
+    FLASH_ProgramByte((FLASH_ADDRESS_START + _address + i), _data[i]);
+  }
+  FLASH_Lock(FLASH_MEMTYPE_DATA);
+}
+
+void EEpromReadArray(uint32_t _address, uint8_t *_data, uint8_t _size)
+{
+  uint8_t i = 0;
+  FLASH_Unlock(FLASH_MEMTYPE_DATA);
+  for (i = 0; i < _size; i++)
+  {
+    _data[i] = FLASH_ReadByte(FLASH_ADDRESS_START + _address + i);
+  }
+  FLASH_Lock(FLASH_MEMTYPE_DATA);
+}
 
 void EEpromWriteByte(uint32_t _address, uint8_t _data)
 {
   FLASH_Unlock(FLASH_MEMTYPE_DATA);
-  FLASH_ProgramByte((_address), _data);
+  FLASH_ProgramByte((FLASH_ADDRESS_START + _address), _data);
   FLASH_Lock(FLASH_MEMTYPE_DATA);
 }
 
@@ -69,7 +91,7 @@ uint8_t EEpromReadByte(uint32_t _address)
 {
   uint8_t data;
   FLASH_Unlock(FLASH_MEMTYPE_DATA);
-  data = FLASH_ReadByte(_address);
+  data = FLASH_ReadByte(FLASH_ADDRESS_START + _address);
   FLASH_Lock(FLASH_MEMTYPE_DATA);
   return data;
 }
@@ -81,15 +103,43 @@ void SetPcbPC3(char _val)
   else
     GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
 }
+void SetPcbPD3(char _val)
+{
+  if (_val)
+    GPIO_WriteHigh(BUZ_GPIO_PORT, (GPIO_Pin_TypeDef)BUZ_GPIO_PINS);
+  else
+    GPIO_WriteLow(BUZ_GPIO_PORT, (GPIO_Pin_TypeDef)BUZ_GPIO_PINS);
+}
+
+void SetPcbPD2(char _val)
+{
+  if (_val)
+    GPIO_WriteHigh(RELAY_GPIO_PORT, (GPIO_Pin_TypeDef)RELAY_GPIO_PINS);
+  else
+    GPIO_WriteLow(RELAY_GPIO_PORT, (GPIO_Pin_TypeDef)RELAY_GPIO_PINS);
+}
+void SetPcbPD2Time(char _val)
+{
+  pcbD2time = _val;
+}
 
 char GetPcbPD4(void)
 {
-  return GPIO_ReadInputPin(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS);
+  if (GPIO_ReadInputPin(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS))
+    return 0;
+  else
+    return 1;
+}
+int buttonCounter = 0;
+int GetPcbPD4Time(void)
+{
+  return buttonCounter;
 }
 
 void SendUart1(unsigned char *_ar, unsigned char _size)
 {
   int i = 0;
+  UART1_ITConfig(UART1_IT_TXE, DISABLE);
   while (i < _size)
   {
     RingBuffer8Write(u1TxBuff, _ar[i]);
@@ -98,14 +148,64 @@ void SendUart1(unsigned char *_ar, unsigned char _size)
   UART1_ITConfig(UART1_IT_TXE, ENABLE);
 }
 
+void SendConstStringUart1(const unsigned char *_ar)
+{
+  int i = 0;
+  UART1_ITConfig(UART1_IT_TXE, DISABLE);
+  while ((i < 30) && (_ar[i] > 0))
+  {
+    RingBuffer8Write(u1TxBuff, _ar[i]);
+    i++;
+  }
+  UART1_ITConfig(UART1_IT_TXE, ENABLE);
+}
+
+void SendStringUart1(unsigned char *_ar)
+{
+  UART1_ITConfig(UART1_IT_TXE, DISABLE);
+  int i = 0;
+  while ((i < 30) && (_ar[i] > 0))
+  {
+    RingBuffer8Write(u1TxBuff, _ar[i]);
+    i++;
+  }
+  UART1_ITConfig(UART1_IT_TXE, ENABLE);
+}
+void SendIntUart1(int _val)
+{
+  UART1_ITConfig(UART1_IT_TXE, DISABLE);
+  if (_val < 100)
+  {
+    RingBuffer8Write(u1TxBuff, ((_val / 10) % 10) + 0x30);
+    RingBuffer8Write(u1TxBuff, (_val % 10) + 0x30);
+  }
+  else
+  {
+    RingBuffer8Write(u1TxBuff, ((_val / 100) % 10) + 0x30);
+    RingBuffer8Write(u1TxBuff, ((_val / 10) % 10) + 0x30);
+    RingBuffer8Write(u1TxBuff, (_val % 10) + 0x30);
+  }
+  UART1_ITConfig(UART1_IT_TXE, ENABLE);
+}
+
+void Uart1BufferReset(void)
+{
+  UART1_ITConfig(UART1_IT_RXNE, DISABLE);
+  RingBuffer8Reset(u1RxBuff);
+  UART1_ITConfig(UART1_IT_RXNE, ENABLE);
+}
+
 char GetUart1(unsigned char *_ar)
 {
 
   char digit = 0;
   char i = 0;
   unsigned char checkXor = 0;
+  UART1_ITConfig(UART1_IT_RXNE, DISABLE);
+  i = RingBuffer8Read(u1RxBuff, &digit);
+  UART1_ITConfig(UART1_IT_RXNE, ENABLE);
 
-  if (RingBuffer8Read(u1RxBuff, &digit))
+  if (i)
   {
     switch (digit)
     {
@@ -120,12 +220,19 @@ char GetUart1(unsigned char *_ar)
       // UART1_SendData8(codeAr[0]);
       if ((tagCodeAr[0] == 2) && (codeGetCnt == 13))
       {
-        for (i = 0; i <= (codeGetCnt); i++)
+        checkXor = 0;
+        for (i = 0; i < 5; i++)
         {
-          _ar[i] = tagCodeAr[i];
+
+          _ar[i] = ((charhexToInt(tagCodeAr[(i * 2) + 1]) << 4) | (charhexToInt(tagCodeAr[(i * 2) + 2])));
+          checkXor = checkXor ^ _ar[i];
         }
         codeGetCnt = 0;
-        return 1;
+        if (((charhexToInt(tagCodeAr[(i * 2) + 1]) << 4) | (charhexToInt(tagCodeAr[(i * 2) + 2]))) == checkXor)
+        {
+          return 1;
+        }
+        return 0;
       }
       else
       {
@@ -254,15 +361,48 @@ void Delay(__IO uint32_t _val)
 }
 char ledStatus = 0;
 unsigned int ledStatusCounter = 0;
+
 void LedStatus(char _val)
 {
   ledStatus = _val;
-  ledStatusCounter = 0;
+  // ledStatusCounter = 0;
 }
 
+void harwareExecute(void)
+{
+  if (pcbD2time)
+    SetPcbPD2(0);
+  else
+    SetPcbPD2(1);
+}
 
 void TIM4_callBackIrq(void)
 {
+  ms++;
+  if (repeatCounter < 2000)
+    repeatCounter++;
+
+  if (ms > 999)
+  {
+    ms = 0;
+
+    if (pcbD2time)
+      pcbD2time--;
+    if (second < 1000)
+      second++;
+
+    if (holdCounter < 100)
+      holdCounter++;
+  }
+  if (GPIO_ReadInputPin(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS))
+  {
+    buttonCounter = 0;
+  }
+  else
+  {
+    if (buttonCounter < 10000)
+      buttonCounter++;
+  }
 
   switch (ledStatus)
   {
@@ -311,24 +451,6 @@ void TIM4_callBackIrq(void)
     else
       ledStatusCounter = 1000;
     break;
-
-  // case 10:
-  //   if (ledStatusCounter > 200)
-  //     GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
-  //   else if (ledStatusCounter > 100)
-  //     GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
-  //   else if (ledStatusCounter > 1)
-  //     GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
-  //   else if (ledStatusCounter > 0)
-  //   {
-  //     GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
-  //     ledStatus = 0;
-  //   }
-  //   else
-  //     ledStatusCounter = 300;
-
-    break;
-
   default:
     break;
   }
@@ -340,17 +462,4 @@ void TIM4_callBackIrq(void)
   {
     delayCounter--;
   }
-
-  // if (delayCounter > 0)
-  // {
-  //   delayCounter--;
-  // }
-  // else
-  // {
-  //   delayCounter = 1000;
-  //   GPIO_WriteReverse(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
-  // }
-  //
-
-  // GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
 }

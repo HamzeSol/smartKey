@@ -1,7 +1,7 @@
 #include "interface.h"
 #include "hardware.h"
 
-void initialize(void)
+void Initialize(void)
 {
   HwInit();
 }
@@ -28,10 +28,24 @@ void Light(char _val)
 {
   SetPcbPC3(_val);
 }
+void Buzz(char _val)
+{
+  SetPcbPD3(_val);
+}
+void RelayTimer(char _val)
+{
+  //SetPcbPD2(_val);
+  SetPcbPD2Time(_val);
+}
 
 char Button(void)
 {
   return GetPcbPD4();
+}
+
+int ButtonTime(void)
+{
+  return GetPcbPD4Time();
 }
 
 char ReadTag(unsigned char *_ar)
@@ -39,7 +53,25 @@ char ReadTag(unsigned char *_ar)
   return GetUart1(_ar);
 }
 
+void ResetTagUart(void)
+{
+  Uart1BufferReset();
+}
+
 void u_printf(unsigned char *_ar, unsigned char _size)
 {
   SendUart1(_ar, _size);
+}
+
+void u_Sprintf(unsigned char *_ar)
+{
+  SendStringUart1(_ar);
+}
+void u_Cprintf(const unsigned char *_ar)
+{
+  SendConstStringUart1(_ar);
+}
+void u_intPrintf(int _val)
+{
+  SendIntUart1(_val);
 }

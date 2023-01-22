@@ -2,6 +2,7 @@
     "files.associations": {
         "mcupinout.h": "c",
         "hardware.h": "c",
-        "interface.h": "c"
+        "interface.h": "c",
+        "cfunc.h": "c"
     }
 }

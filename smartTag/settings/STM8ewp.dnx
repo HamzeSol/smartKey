@@ -16,7 +16,7 @@
         <ShowSource>1</ShowSource>
     </Trace1>
     <DebugChecksum>
-        <Checksum>1576502887</Checksum>
+        <Checksum>282458659</Checksum>
     </DebugChecksum>
     <CallStack>
         <ShowArgs>0</ShowArgs>
@@ -25,10 +25,6 @@
         <InstrCount>0</InstrCount>
         <MixedMode>1</MixedMode>
     </Disassembly>
-    <SfrWindow>
-        <Show>1 1</Show>
-        <Sort>4 0</Sort>
-    </SfrWindow>
     <CodeCoverage>
         <Enabled>0</Enabled>
         <ShowSource>0</ShowSource>
@@ -79,6 +75,10 @@
         <FreqHi>0</FreqHi>
         <MultiCoreRunAll>1</MultiCoreRunAll>
     </Simulator>
+    <SfrWindow>
+        <Show>1 1</Show>
+        <Sort>4 0</Sort>
+    </SfrWindow>
     <DataSample>
         <LogEnabled>0</LogEnabled>
         <GraphEnabled>0</GraphEnabled>
