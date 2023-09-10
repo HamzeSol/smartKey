@@ -1,3 +1,18 @@
+/**
+ ******************************************************************************
+ * @file
+ * @author
+ * @version
+ * @date
+ * @brief
+ ******************************************************************************
+ * @attention
+ *
+ *
+ ******************************************************************************
+ */
+
+/* Includes ------------------------------------------------------------------*/
 #include "stm8s.h"
 #include <stdio.h>
 #include "interface.h"
@@ -5,20 +20,23 @@
 #include "hardware.h"
 #include "mcuPinOut.h"
 
+/* Private define ------------------------------------------------------------*/
 #define NORMAL_USER_CNT 3
 #define TAG_CODE_SIZE 5
 #define TAG_LIST_SIZE (NORMAL_USER_CNT + 1)
 
-char CrcCheck(unsigned char *_ar, unsigned char _crc);
-char Calidation(unsigned char *_ar);
+/* Private function prototypes -----------------------------------------------*/
+// char CrcCheck(unsigned char *_ar, unsigned char _crc);
+// char Calidation(unsigned char *_ar);
 char TagListExist();
 char TagCheck(unsigned char *_ar);
 void TagSave(unsigned char *_ar, char _level);
-char TagDelete(unsigned char *_ar);
+// char TagDelete(unsigned char *_ar);
 void TagListReset(void);
 void TagEEpromToRam();
 void TagRamToEEprom();
 
+/* Private variables ---------------------------------------------------------*/
 unsigned char tagList[TAG_LIST_SIZE][TAG_CODE_SIZE];
 unsigned char tagBuffer[TAG_CODE_SIZE];
 char machinState = 0;
@@ -34,28 +52,23 @@ enum mState
   STS_WAIT_FOR_REGISTER_MASTER
 };
 
+/* Private functions ----------------------------------------------------------*/
 int main(void)
 {
-
-  // char str[30];
-  // signed char isKey = 0;
   unsigned char tagId = 0;
-  // unsigned char tagIdOld = 0;
-  // unsigned int tagIdCnt = 0;
-  // unsigned int tagIdHoldCnt = 0;
-  // int printCnt = 0;
   char firstTime = 0;
-  Initialize();
+  Initialize(); // Initialize hardware
   Buzz(0);
   Delay(100);
   Buzz(1);
 
-  TagEEpromToRam();
+  TagEEpromToRam(); // Retrive EEprom data
   char i = 0;
   u_Cprintf("(");
   u_intPrintf(tagSaveCounter);
   u_Cprintf(")\n");
-  for (i = 0; i < TAG_LIST_SIZE; i++)
+
+  for (i = 0; i < TAG_LIST_SIZE; i++) // Show list of saved tags
   {
     u_intPrintf(i);
     u_Cprintf(":");
@@ -75,9 +88,9 @@ int main(void)
   Delay(2000);
   while (1)
   {
-    harwareExecute();
+    harwareExecute(); // Execute hardware change
 
-    if (machinState != machinStateOld)
+    if (machinState != machinStateOld) // Show machine state when it changes
     {
       machinStateOld = machinState;
       switch (machinState)
@@ -102,9 +115,9 @@ int main(void)
       }
     }
 
-    switch (machinState)
+    switch (machinState) // Decide what to do
     {
-    case STS_UNKNOWN:
+    case STS_UNKNOWN: // First time, when state in unknown
       if (TagListExist())
       {
         machinState = STS_WAIT_FOR_TAG;
@@ -116,7 +129,7 @@ int main(void)
       }
       holdCounter = 0;
       break;
-    case STS_NO_REGISTER:
+    case STS_NO_REGISTER: // No tag has regestered
       LedStatus(LED_ON);
       if (ButtonTime() > 1000)
       {
@@ -146,8 +159,6 @@ int main(void)
       tagId = TagCheck(tagBuffer);
       if (tagId > 0)
       {
-        // tagIdOld = tagId;
-        // tagIdCnt = 0;
         u_Cprintf("(");
         u_intPrintf(tagId);
         u_Cprintf(")");
@@ -170,7 +181,7 @@ int main(void)
           Delay(100);
           Buzz(1);
         }
-        else if (tagId == 254)
+        else if (tagId == 254) // Unregistered tag detected
         {
           //-----------------
           Buzz(0);
@@ -201,27 +212,14 @@ int main(void)
       {
         firstTime = 0;
         ResetTagUart();
-        // RingBuffer8Reset();
       }
       else
       {
-        // TagListReset
         if (ReadTag(tagBuffer))
         {
-
-          // u_printf(tagBuffer, 5);
-          // u_intPrintf(tagBuffer[0]);
-          // u_Cprintf(",");
-          // u_intPrintf(tagBuffer[1]);
-          // u_Cprintf(",");
-          // u_intPrintf(tagBuffer[2]);
-          // u_Cprintf(",");
-          // u_intPrintf(tagBuffer[3]);
           u_Cprintf(",");
           u_intPrintf(tagBuffer[4]);
-
           u_Cprintf(",s\n");
-
           TagSave(tagBuffer, 2);
           Buzz(0);
           Delay(100);
@@ -259,7 +257,6 @@ int main(void)
         Buzz(1);
         Delay(100);
         TagSave(tagBuffer, 1);
-        // u_printf(tagBuffer, 5); // {36}{00}{F8}{85}{F0}
         Buzz(0);
         Delay(100);
         Buzz(1);
@@ -274,27 +271,27 @@ int main(void)
         Buzz(1);
         machinState = STS_UNKNOWN;
       }
-
       break;
-
     default:
       break;
     }
   }
-
   return 0;
 }
+
 char i = 0, j = 0;
-char CrcCheck(unsigned char *_ar, unsigned char _crc)
-{
-  return 1;
-}
+// char CrcCheck(unsigned char *_ar, unsigned char _crc)
+// {
+//   return 1;
+// }
 
-char Validation(unsigned char *_ar)
-{
-  return 0;
-}
+// char Validation(unsigned char *_ar)
+// {
+//   return 0;
+// }
 
+/// @brief Check has any tag registered or not
+/// @return 0: list is empty , 1 : at least one tag has registered
 char TagListExist()
 {
   char i = 0, j = 0;
@@ -308,6 +305,9 @@ char TagListExist()
 unsigned int idCounter = 0;
 unsigned char tagIdHold = 0;
 
+/// @brief Any tag has a ID in this system, and it return its ID if it has registered
+/// @param _ar , pointer to array of tag number
+/// @return its ID in the system
 char TagCheck(unsigned char *_ar)
 {
   char _correct = 0;
@@ -329,10 +329,6 @@ char TagCheck(unsigned char *_ar)
           break;
         }
       }
-      // if ((_ar[0] == 0) && (_ar[1] == 0) && (_ar[2] == 0) && (_ar[3] == 0) && (_ar[4] == 0))
-      // {
-      //   _correct = 0;
-      // }
 
       if (_correct == 1)
       {
@@ -361,9 +357,6 @@ char TagCheck(unsigned char *_ar)
     holdCounter = 0;
     if (tagIdHold == 1)
     {
-      // u_intPrintf(tagIdHold);
-      // u_Cprintf("]");
-
       return 254;
     }
     else if ((tagIdHold > 1) && (tagIdHold < 253))
@@ -387,6 +380,9 @@ char TagCheck(unsigned char *_ar)
   return 0;
 }
 
+/// @brief Save tags' number and its accessibility
+/// @param _ar pointer to array of tag number
+/// @param _level 1: Master user, 2:Normal user
 void TagSave(unsigned char *_ar, char _level)
 {
 
@@ -416,10 +412,8 @@ void TagSave(unsigned char *_ar, char _level)
   TagRamToEEprom();
 }
 
-char TagDelete(unsigned char *_ar)
-{
-}
-
+/// @brief Clear list of tags
+/// @param  
 void TagListReset(void)
 {
   i = 0;
@@ -435,6 +429,7 @@ void TagListReset(void)
   TagRamToEEprom();
 }
 
+/// @brief Retreive saved tags from EEprom
 void TagEEpromToRam()
 {
   char i = 0;
@@ -444,9 +439,11 @@ void TagEEpromToRam()
     EEpromReadArray(((i * TAG_CODE_SIZE) + 1), tagList[i], TAG_CODE_SIZE);
   }
 }
+
+
+/// @brief Save tag to EEprom
 void TagRamToEEprom()
 {
-  // char i = 0;
   disableInterrupts();
   UART1_ITConfig(UART1_IT_RXNE, DISABLE);
   EEpromWriteArray(0, &tagSaveCounter, 1);

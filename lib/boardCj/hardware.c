@@ -1,21 +1,38 @@
 
+/**
+ ******************************************************************************
+ * @file    hardware.h
+ * @author  h.soleimanipour@gmail.com
+ * @version V1
+ * @date    30-Jan-2023
+ * @brief   Our hardware or PCB has some I/O, port, channel etc. and
+ * they have their specific names. Here, we control them by considering their names
+ ******************************************************************************
+ */
+
+/* Includes ------------------------------------------------------------------*/
 #include "stm8s.h"
 #include "hardware.h"
 #include "mcuPinOut.h"
 #include "cFunc.h"
-char u1RxBuff;
-char u1TxBuff;
 
-static void CLK_Config(void);
-static void UART_Config(void);
-static void TIM4_Config(void);
+/* Private define ------------------------------------------------------------*/
 #define FLASH_ADDRESS_START 0x4010
 #define U1_RX_BUFF_SIZE 60
 #define U1_TX_BUFF_SIZE 60
-
 #define CODE_SIZE 16
 #define TAG_DATA_SIZE 5
 
+/* Private variables ---------------------------------------------------------*/
+char u1RxBuff;
+char u1TxBuff;
+
+/* Public functions ----------------------------------------------------------*/
+static void CLK_Config(void);
+static void UART_Config(void);
+static void TIM4_Config(void);
+
+/* Private variables ---------------------------------------------------------*/
 unsigned char tagCodeAr[CODE_SIZE];
 unsigned char tagCodeIntAr[TAG_DATA_SIZE];
 unsigned char tagHex[3];
@@ -26,6 +43,12 @@ int second = 0;
 int repeatCounter = 0;
 int holdCounter = 0;
 int pcbD2time = 0;
+int buttonCounter = 0;
+
+char ledStatus = 0;
+unsigned int ledStatusCounter = 0;
+
+/// @brief Initial MCU peripheral (GPIO, Timer, EEprom, UART)
 void HwInit(void)
 {
   u1RxBuff = RingBuffer8Create(U1_RX_BUFF_SIZE);
@@ -57,7 +80,10 @@ void HwInit(void)
   FLASH_SetProgrammingTime(FLASH_PROGRAMTIME_STANDARD);
 }
 
-
+/// @brief Write an array to EEprom
+/// @param _address Destination address of EEprom
+/// @param _data pointer to array for writing to EEprom
+/// @param _size Size of array
 void EEpromWriteArray(uint32_t _address, uint8_t *_data, uint8_t _size)
 {
   uint8_t i = 0;
@@ -69,6 +95,10 @@ void EEpromWriteArray(uint32_t _address, uint8_t *_data, uint8_t _size)
   FLASH_Lock(FLASH_MEMTYPE_DATA);
 }
 
+/// @brief Read data from EEprom
+/// @param _address Destination address of EEprom
+/// @param _data pointer to array for storing data on it
+/// @param _size Size of data
 void EEpromReadArray(uint32_t _address, uint8_t *_data, uint8_t _size)
 {
   uint8_t i = 0;
@@ -80,6 +110,9 @@ void EEpromReadArray(uint32_t _address, uint8_t *_data, uint8_t _size)
   FLASH_Lock(FLASH_MEMTYPE_DATA);
 }
 
+/// @brief Write one byte to EEprom
+/// @param _address Destination address of EEprom
+/// @param _data unsigned char to be stored
 void EEpromWriteByte(uint32_t _address, uint8_t _data)
 {
   FLASH_Unlock(FLASH_MEMTYPE_DATA);
@@ -87,6 +120,9 @@ void EEpromWriteByte(uint32_t _address, uint8_t _data)
   FLASH_Lock(FLASH_MEMTYPE_DATA);
 }
 
+/// @brief Read one byte of EEprom
+/// @param _address Destination address of EEprom
+/// @return Read data
 uint8_t EEpromReadByte(uint32_t _address)
 {
   uint8_t data;
@@ -96,6 +132,8 @@ uint8_t EEpromReadByte(uint32_t _address)
   return data;
 }
 
+/// @brief Set state of PC3 on PCB
+/// @param _val 1: Set high level 0: Set low level
 void SetPcbPC3(char _val)
 {
   if (_val)
@@ -103,6 +141,9 @@ void SetPcbPC3(char _val)
   else
     GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
 }
+
+/// @brief Set state of PC3 on PD3
+/// @param _val 1: Set high level 0: Set low level
 void SetPcbPD3(char _val)
 {
   if (_val)
@@ -111,6 +152,8 @@ void SetPcbPD3(char _val)
     GPIO_WriteLow(BUZ_GPIO_PORT, (GPIO_Pin_TypeDef)BUZ_GPIO_PINS);
 }
 
+/// @brief Set state of PC3 on PD2
+/// @param _val 1: Set high level 0: Set low level
 void SetPcbPD2(char _val)
 {
   if (_val)
@@ -118,11 +161,24 @@ void SetPcbPD2(char _val)
   else
     GPIO_WriteLow(RELAY_GPIO_PORT, (GPIO_Pin_TypeDef)RELAY_GPIO_PINS);
 }
+
+void SetPcbLED(char _val)
+{
+  if (_val)
+    GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+  else
+    GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+}
+
+/// @brief Set a pin high and after a time return low for specific time
+/// @param _val Time in millisecond
 void SetPcbPD2Time(char _val)
 {
   pcbD2time = _val;
 }
 
+/// @brief Set state of PC3 on PD4
+/// @param _val 1: Set high level 0: Set low level
 char GetPcbPD4(void)
 {
   if (GPIO_ReadInputPin(SW_GPIO_PORT, (GPIO_Pin_TypeDef)SW_GPIO_PINS))
@@ -130,12 +186,17 @@ char GetPcbPD4(void)
   else
     return 1;
 }
-int buttonCounter = 0;
+
+/// @brief Set a pin high and after a time return low for specific time
+/// @param _val Time in millisecond
 int GetPcbPD4Time(void)
 {
   return buttonCounter;
 }
 
+/// @brief Fill a buffer to send on UART
+/// @param _ar Array to be send
+/// @param _size Size of array to be send
 void SendUart1(unsigned char *_ar, unsigned char _size)
 {
   int i = 0;
@@ -148,6 +209,8 @@ void SendUart1(unsigned char *_ar, unsigned char _size)
   UART1_ITConfig(UART1_IT_TXE, ENABLE);
 }
 
+/// @brief Send a const string on UART
+/// @param _ar Const string to be send
 void SendConstStringUart1(const unsigned char *_ar)
 {
   int i = 0;
@@ -160,6 +223,8 @@ void SendConstStringUart1(const unsigned char *_ar)
   UART1_ITConfig(UART1_IT_TXE, ENABLE);
 }
 
+/// @brief Send a string on UART
+/// @param _ar String to be send
 void SendStringUart1(unsigned char *_ar)
 {
   UART1_ITConfig(UART1_IT_TXE, DISABLE);
@@ -171,6 +236,9 @@ void SendStringUart1(unsigned char *_ar)
   }
   UART1_ITConfig(UART1_IT_TXE, ENABLE);
 }
+
+/// @brief Send a integer on UART
+/// @param _ar integer to be send
 void SendIntUart1(int _val)
 {
   UART1_ITConfig(UART1_IT_TXE, DISABLE);
@@ -188,6 +256,7 @@ void SendIntUart1(int _val)
   UART1_ITConfig(UART1_IT_TXE, ENABLE);
 }
 
+/// @brief Clear buffer of UART RX
 void Uart1BufferReset(void)
 {
   UART1_ITConfig(UART1_IT_RXNE, DISABLE);
@@ -195,6 +264,9 @@ void Uart1BufferReset(void)
   UART1_ITConfig(UART1_IT_RXNE, ENABLE);
 }
 
+/// @brief Read UART data
+/// @param _ar Pointer for store data in it
+/// @return 1: there in new data on UART, 0: No data has received yet
 char GetUart1(unsigned char *_ar)
 {
 
@@ -258,9 +330,12 @@ char GetUart1(unsigned char *_ar)
   return 0;
 }
 
+/**
+ * @brief When peripheral UART TX is empty, it will call this function
+ * If there is a data to Send, It fill UART buffer by it, otherwise, Disable TX Interrupt
+ * */
 void Uart1TXIRQcallback()
 {
-
   if (RingBuffer8Read(u1TxBuff, &data))
   {
     UART1_SendData8(data);
@@ -271,6 +346,8 @@ void Uart1TXIRQcallback()
   }
 }
 
+/// @brief UART RX interrupt call this function, and it stores in ring buffer
+/// @param _val
 void Uart1RXIRQcallback(unsigned char _val)
 {
   RingBuffer8Write(u1RxBuff, _val);
@@ -350,8 +427,9 @@ static void TIM4_Config(void)
 }
 
 __IO uint32_t delayCounter = 50;
-;
-// volatile unsigned int delayCounter=10;
+
+/// @brief Pulling delay
+/// @param _val millisecond
 void Delay(__IO uint32_t _val)
 {
   delayCounter = _val;
@@ -359,15 +437,16 @@ void Delay(__IO uint32_t _val)
   while (delayCounter > 0)
     ;
 }
-char ledStatus = 0;
-unsigned int ledStatusCounter = 0;
 
+/// @brief Control LED status
+/// @param _val State : #LedStatusEnum
 void LedStatus(char _val)
 {
   ledStatus = _val;
-  // ledStatusCounter = 0;
 }
 
+/// @brief Execute changes on Hardware
+/// @param  None
 void harwareExecute(void)
 {
   if (pcbD2time)
@@ -376,6 +455,8 @@ void harwareExecute(void)
     SetPcbPD2(1);
 }
 
+/// @brief Every 100ms, Timer call this function, and it control counters, LED state, etc.
+/// @param  None
 void TIM4_callBackIrq(void)
 {
   ms++;
@@ -407,28 +488,27 @@ void TIM4_callBackIrq(void)
   switch (ledStatus)
   {
   case LED_OFF:
-
-    GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    SetPcbLED(1);
     break;
   case LED_ON:
-    GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+    SetPcbLED(0);
     break;
   case LED_OK:
     if (ledStatusCounter > 1)
-      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(0);
     else if (ledStatusCounter > 0)
     {
-      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(1);
       ledStatus = 0;
     }
     else
       ledStatusCounter = 1500;
   case LED_ERROR:
     if (ledStatusCounter > 1)
-      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(0);
     else if (ledStatusCounter > 0)
     {
-      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(1);
       ledStatus = 0;
     }
     else
@@ -437,17 +517,17 @@ void TIM4_callBackIrq(void)
     break;
   case LED_REG_USER:
     if (ledStatusCounter > 200)
-      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(0);
     else if (ledStatusCounter > 0)
-      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(1);
     else
       ledStatusCounter = 400;
     break;
   case LED_REG_MASTER:
     if (ledStatusCounter > 200)
-      GPIO_WriteLow(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(0);
     else if (ledStatusCounter > 0)
-      GPIO_WriteHigh(LED_GPIO_PORT, (GPIO_Pin_TypeDef)LED_GPIO_PINS);
+      SetPcbLED(1);
     else
       ledStatusCounter = 1000;
     break;

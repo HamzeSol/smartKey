@@ -1,5 +1,17 @@
+/**
+ ******************************************************************************
+ * @file    mcuPinOut.h
+ * @author  h.soleimanipour@gmail.com
+ * @version V1
+ * @date    30-Jan-2023
+ * @brief   Define microcontroller pins for our purposes
+ ******************************************************************************
+ */
+
+/* Includes ------------------------------------------------------------------*/
 #include "stm8s.h"
 
+/* Public define -------------------------------------------------------------*/
 #define LED_GPIO_PORT (GPIOC)
 #define LED_GPIO_PINS (GPIO_PIN_3)
 

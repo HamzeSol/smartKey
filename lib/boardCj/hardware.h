@@ -1,10 +1,27 @@
+
+/**
+ ******************************************************************************
+ * @file    hardware.h
+ * @author  h.soleimanipour@gmail.com
+ * @version V1
+ * @date    30-Jan-2023
+ * @brief   Our hardware or PCB has some I/O, port, ADC channel, etc. and 
+ * they have their specific names. Here we control them by considering their names
+ ******************************************************************************
+ */ 
+
+
+/* Includes ------------------------------------------------------------------*/
 #include "stm8s.h"
 
+
+/* Private variables ---------------------------------------------------------*/
 extern int second;
 extern int repeatCounter;
 extern int holdCounter;
 
-enum LedStatus
+/// @brief LED status
+enum LedStatusEnum
 {
     LED_OFF = 0,
     LED_ON,
@@ -12,8 +29,10 @@ enum LedStatus
     LED_ERROR,
     LED_REG_USER,
     LED_REG_MASTER
-
 };
+
+
+/* Public functions ----------------------------------------------------------*/
 void HwInit(void);
 void EEpromWriteArray(uint32_t _address, uint8_t *_data, uint8_t _size);
 void EEpromWriteByte(uint32_t _address, uint8_t _data);
@@ -24,6 +43,7 @@ void harwareExecute(void);
 void SetPcbPC3(char _val);
 void SetPcbPD3(char _val);
 void SetPcbPD2(char _val);
+void SetPcbLED(char _val);
 char GetPcbPD4(void);
 int GetPcbPD4Time(void);
 

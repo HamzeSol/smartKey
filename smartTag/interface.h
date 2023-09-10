@@ -1,7 +1,19 @@
+/**
+ ******************************************************************************
+ * @file    interface.h
+ * @author  h.soleimanipour@gmail.com
+ * @version V1
+ * @date    30-Jan-2023
+ * @brief   This file is an adapter or interface for connect user layer to the hardware layer
+ ******************************************************************************
+ */
+
+/* Exported functions ------------------------------------------------------- */
+
 void Initialize(void);
 
-void SaveMemoryByte(unsigned char _index, unsigned char _data);
-unsigned char ReadMemoryByte(unsigned char _index);
+// void SaveMemoryByte(unsigned char _index, unsigned char _data);
+// unsigned char ReadMemoryByte(unsigned char _index);
 
 void Light(char _val);
 void Buzz(char _val);
